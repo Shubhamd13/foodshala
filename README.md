@@ -1,57 +1,133 @@
-# CodeIgniter 4 Framework
+<p align="center">
+  <img src="public/static/logo.png" alt="FoodShala logo" width="96">
+</p>
 
-## What is CodeIgniter?
+<h1 align="center">FoodShala</h1>
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible, and secure. 
-More information can be found at the [official site](http://codeigniter.com).
+<p align="center">
+  A small food-ordering website: restaurants list their dishes, and customers browse one shared menu and order.<br>
+  Built in PHP on CodeIgniter 4 with MySQL, in under a week.
+</p>
 
-This repository holds the distributable version of the framework,
-including the user guide. It has been built from the 
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+<p align="center">
+  <a href="https://shubhamd13.github.io/projects/foodshala/">Project write-up</a>
+</p>
 
-More information about the plans for version 4 can be found in [the announcement](http://forum.codeigniter.com/thread-62615.html) on the forums.
+---
 
-The user guide corresponding to this version of the framework can be found
-[here](https://codeigniter4.github.io/userguide/). 
+## About
 
+I built FoodShala on my own in June–July 2020 as the take-home assignment for a web developer role at Internshala. The brief was a working food-ordering site with separate restaurant and customer accounts, hosted online. I designed the database, wrote the app, and deployed it to AWS. That deployment has since been shut down, so this repository is the record of the project.
 
-## Important Change with index.php
+## Features
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+**Restaurants**
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+- Register with the restaurant's name, address, and FSSAI licence number.
+- Add dishes with a name, a short description, a price in rupees, and a veg or non-veg tag.
+- See their own menu, and a list of incoming orders showing who ordered which dish and when.
 
-**Please** read the user guide for a better explanation of how CI4 works!
-The user guide updating and deployment is a bit awkward at the moment, but we are working on it!
+**Customers**
 
-## Repository Management
+- Register with their name, address, and a veg or non-veg preference.
+- Browse every restaurant's dishes on one menu, and hide non-veg dishes with a **Veg-Only** toggle.
+- Order a dish with **Buy Now**, then check their order history.
 
-We use Github issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+Anyone can browse the menu without signing in. Buy Now sends signed-out visitors to the sign-in page.
 
-This repository is a "distribution" one, built by our release preparation script. 
-Problems with it can be raised on our forum, or as issues in the main repository.
+**Security**
 
-## Contributing
+- Passwords are stored as bcrypt hashes.
+- Every restaurant-only or customer-only page checks the session's account type, so customers can't add dishes and restaurants can't place orders.
+- Validation runs on the server through the model rules, and in the browser through jQuery Validation. Input is sanitised, and output is HTML-escaped.
 
-We welcome contributions from the community.
+## Tech stack
 
-Please read the [*Contributing to CodeIgniter*](https://github.com/codeigniter4/CodeIgniter4/blob/develop/contributing.md) section in the development repository.
+| Layer    | Tools                                                     |
+| -------- | --------------------------------------------------------- |
+| Backend  | PHP 7.2+, [CodeIgniter 4.0.3](https://codeigniter.com/)   |
+| Database | MySQL (InnoDB)                                            |
+| Frontend | Bootstrap 4.5, jQuery, jQuery Validation, Font Awesome    |
+| Hosting  | AWS Elastic Beanstalk (app) and Amazon RDS for MySQL (DB) |
 
-## Server Requirements
+## Project layout
 
-PHP version 7.2 or higher is required, with the following extensions installed: 
+Only `app/` and `foodshala.sql` are mine. `system/` is the CodeIgniter 4 framework, included unchanged.
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+```text
+app/
+├── Config/Routes.php      URL → controller mapping
+├── Controllers/           Login, Registration, Menu, Restaurant, Order
+├── Models/                One model per table, with its validation rules
+├── Entities/              Row objects; Customer and Restaurant hash and check passwords
+└── Views/                 Bootstrap pages (menu, sign-in, sign-up, add dish, orders)
+public/                    Web root: index.php and static images
+foodshala.sql              Database schema
+```
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+## Database
 
-- json (enabled by default - don't turn it off)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php)
-- xml (enabled by default - don't turn it off)
+```text
+restaurants (id, restaurantname, email, password, fssain, address)
+customers   (id, firstname, lastname, email, password, address, preference)
+item        (id, dishname, description, price, preference, restaurant_id → restaurants)
+orders      (id, cust_id → customers, restaurant_id → restaurants, item_id → item, created_at)
+```
+
+All foreign keys cascade on delete, so removing a restaurant also removes its dishes and their orders.
+
+## Routes
+
+| Method | Path                                          | Who        | What                        |
+| ------ | --------------------------------------------- | ---------- | --------------------------- |
+| GET    | `/`                                           | everyone   | Shared menu                 |
+| GET    | `/login`                                      | signed out | Sign-in page (both roles)   |
+| POST   | `/login/customer`, `/login/restaurant`        | signed out | Sign in                     |
+| GET    | `/login/logout`                               | signed in  | Sign out                    |
+| GET    | `/register/customer`, `/register/restaurant`  | signed out | Sign-up forms               |
+| POST   | `/register/customer`, `/register/restaurant`  | signed out | Create an account           |
+| GET    | `/addItem`                                    | restaurant | Add-dish form               |
+| POST   | `/addItem`                                    | restaurant | Save a dish                 |
+| GET    | `/viewItems`                                  | restaurant | Own menu                    |
+| GET    | `/order/{itemId}`                             | customer   | Order a dish                |
+| GET    | `/viewOrders`                                 | both       | Incoming orders / my orders |
+
+## Running it locally
+
+You need PHP 7.2 or newer with the `intl`, `mbstring`, and `mysqlnd` extensions, and a MySQL server.
+
+1. Create a database and load the schema:
+
+   ```bash
+   mysql -u root -p -e "CREATE DATABASE foodshala"
+   mysql -u root -p foodshala < foodshala.sql
+   ```
+
+2. Create a `.env` file in the project root. It is git-ignored, so your credentials stay local:
+
+   ```ini
+   CI_ENVIRONMENT = development
+   app.baseURL = 'http://localhost:8080/'
+
+   database.default.hostname = localhost
+   database.default.database = foodshala
+   database.default.username = your_mysql_user
+   database.default.password = your_mysql_password
+   database.default.DBDriver = MySQLi
+   ```
+
+3. Start CodeIgniter's development server and open <http://localhost:8080>:
+
+   ```bash
+   php spark serve
+   ```
+
+4. Register a restaurant and add a few dishes. Then sign out, register a customer, and place an order.
+
+## Status
+
+This is an archived 2020 project, written for CodeIgniter 4.0.3 and PHP 7.2–7.4, and it isn't maintained. It may need small fixes to run on current PHP or CodeIgniter releases.
+
+## License
+
+The CodeIgniter framework under `system/` is MIT-licensed by the British Columbia Institute of Technology and the CodeIgniter Foundation. See [license.txt](license.txt).
